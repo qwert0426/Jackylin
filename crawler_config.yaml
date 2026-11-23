@@ -1,0 +1,51 @@
+# 台股資料庫爬蟲設定檔
+# 想改抓哪些資料、從哪一年開始，只要改這個檔案，不用動程式。
+# 在 GitHub 網頁上點這個檔案 → 右上角鉛筆圖示 → 修改 → Commit changes 即可。
+
+# 歷史資料起始日
+start_date: "2010-01-01"
+
+# Google Drive 上的資料庫資料夾名稱（放在「我的雲端硬碟」最上層）
+drive_folder: "台股資料庫"
+
+# 要抓的資料（true = 抓，false = 不抓）
+datasets:
+  price: true              # 日K價量（開高低收、成交量）
+  per: true                # 本益比 / 股價淨值比 / 殖利率
+  institutional: true      # 三大法人買賣超
+  margin: true             # 融資融券餘額
+  foreign_holding: true    # 外資持股比例
+  short_balance: true      # 借券賣出餘額
+  day_trading: true        # 當沖成交量 / 金額
+  month_revenue: true      # 月營收
+  income: true             # 綜合損益表（EPS、毛利率來源）
+  balance: true            # 資產負債表（ROE 來源）
+  cashflow: true           # 現金流量表
+  dividend: true           # 除權息結果（還原股價來源）
+  capital_reduction: true  # 減資參考價（還原股價來源）
+  holding: true            # 集保股權分散表（400 張以上大戶持股）
+
+# 股票範圍（true = 收錄）
+universe:
+  listed: true      # 上市
+  otc: true         # 上櫃
+  emerging: true    # 興櫃
+  etf: true         # ETF
+  delisted: true    # 已下市 / 下櫃（回測避免倖存者偏差）
+
+# FinMind 每次執行最多用幾次請求（免費版每小時上限 600；程式也會先查剩餘額度）
+finmind_max_requests_per_run: 550
+
+# FinMind 付費會員才開 true：大戶持股改由 FinMind 補齊 2010 年以來歷史
+finmind_sponsor: false
+
+# 每次執行的時間分配（分鐘）
+time_budget:
+  total: 50
+  official_daily: 12
+  finmind: 22
+  tdcc_backfill: 12
+  export: 8
+
+# 每次執行最多更新幾檔個股 Excel（輪流更新）
+excel_per_run: 150

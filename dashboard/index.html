@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>台股資料庫統計</title>
+<style>
+:root{--bg:#0b1220;--card:#0f1a2c;--line:#1e2d45;--fg:#e6edf6;--mut:#93a4bd;--acc:#4cc3ff;--ok:#22c38e;--warn:#f0b429;--bad:#ef5b5b;--track:#22303f}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#f4f6fa;--card:#fff;--line:#e3e8f0;--fg:#14213a;--mut:#5b6b82;--acc:#0b7fc1;--track:#e4e9f1}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+header{padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}
+header h1{font-size:18px;margin:0}
+header .sub{color:var(--mut);font-size:13px}
+main{max-width:980px;margin:0 auto;padding:12px 16px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:12px 0}
+.card h2{font-size:17px;margin:0 0 10px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.tabs button{background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 14px;font-size:15px;cursor:pointer}
+.tabs button.on{border-color:var(--acc);color:var(--acc)}
+.row{padding:10px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.lbl{color:var(--acc);font-weight:600}
+.bar{display:flex;align-items:center;gap:10px;margin:6px 0}
+.track{flex:1;height:10px;background:var(--track);border-radius:6px;overflow:hidden}
+.fill{height:100%;background:var(--ok);border-radius:6px}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.dates{display:flex;justify-content:space-between;color:var(--mut);font-size:13px;flex-wrap:wrap;gap:4px}
+.mini{color:var(--mut);font-size:12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:10px}
+.kpi b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+.kpi span{color:var(--mut);font-size:13px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{color:var(--mut);font-weight:600}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+a{color:var(--acc)}
+details summary{cursor:pointer;color:var(--acc);font-size:16px;padding:6px 0}
+</style>
+</head>
+<body>
+<header><h1>台股資料庫統計</h1><div class="sub" id="sub">載入中…</div></header>
+<main>
+<section class="card"><h2>總覽</h2><div class="kpis" id="kpis"></div></section>
+<section class="card">
+  <h2>資料覆蓋</h2>
+  <div class="tabs" id="tabs"></div>
+  <div id="cov"></div>
+  <p class="mini">綠色進度條 = 已收錄檔數 / 應收錄檔數（至少有一筆資料就算收錄）。下方小字是歷史回補進度：該檔已從起始日完整抓過一次。</p>
+</section>
+<section class="card"><details><summary>五年 / 十年涵蓋與來源</summary><div class="tbl"><table id="span"></table></div></details></section>
+<section class="card"><details><summary>最近執行紀錄</summary><div class="tbl"><table id="runs"></table></div></details></section>
+<section class="card"><details><summary>官方每日更新狀態</summary><div class="tbl"><table id="off"></table></div></details></section>
+</main>
+<script>
+const fmt=n=>(n===""||n==null)?"":Number(n).toLocaleString("zh-TW");
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let DATA=null,CAT="全部";
+function render(){
+  const ds=DATA.datasets.filter(d=>CAT==="全部"||d.category===CAT);
+  document.getElementById("cov").innerHTML=ds.map(d=>{
+    const pct=d.applicable?Math.min(100,d.covered/d.applicable*100):0;
+    const bp=d.backfill_total?Math.round(d.backfill_done/d.backfill_total*100):0;
+    return `<div class="row"><div class="lbl">${esc(d.label)}</div>
+      <div class="bar"><div class="track"><div class="fill" style="width:${pct}%"></div></div>
+      <div class="num">${fmt(d.covered)} / ${fmt(d.applicable)}</div></div>
+      <div class="dates"><span>最早 ${esc(d.min_date)||"—"}</span><span>最新 ${esc(d.max_date)||"—"}</span></div>
+      <div class="mini">歷史回補 ${fmt(d.backfill_done)} / ${fmt(d.backfill_total)}（${bp}%）・總筆數 ${fmt(d.rows)}</div></div>`}).join("");
+}
+fetch("stats.json?"+Date.now()).then(r=>r.json()).then(d=>{
+  DATA=d;
+  document.getElementById("sub").textContent=`更新時間 ${d.generated_at}（台灣時間）・起始日 ${d.start_date}`;
+  const u=d.universe, last=d.runs[0]||{};
+  const kp=[["股票總數",u.total],...Object.entries(u.by_market).map(([k,v])=>[k,v]),["ETF",u.etf],["已下市",u.delisted],
+    ["最近執行",(last.time||"").slice(5,16)],["待回補項目",last.backfill_pending||"—"]];
+  document.getElementById("kpis").innerHTML=kp.map(([k,v])=>`<div class="kpi"><b>${typeof v==="number"?fmt(v):esc(v)}</b><span>${esc(k)}</span></div>`).join("");
+  const cats=["全部","基本面","籌碼面","技術面"];
+  const tabs=document.getElementById("tabs");
+  tabs.innerHTML=cats.map(c=>`<button data-c="${c}" class="${c===CAT?"on":""}">${c}</button>`).join("");
+  tabs.onclick=e=>{if(!e.target.dataset.c)return;CAT=e.target.dataset.c;[...tabs.children].forEach(b=>b.classList.toggle("on",b.dataset.c===CAT));render();};
+  render();
+  document.getElementById("span").innerHTML="<tr><th>資料</th><th>跨五年</th><th>跨十年</th><th>每檔中位年數</th><th>來源</th></tr>"+
+    d.datasets.map(x=>`<tr><td>${esc(x.label)}</td><td class="n">${fmt(x.span5)}</td><td class="n">${fmt(x.span10)}</td><td class="n">${x.median_years}</td><td>${esc(x.source)}</td></tr>`).join("");
+  const rc=["time","status","minutes","official_rows","finmind_requests","finmind_rows","tdcc_queries","excel_exported","backfill_pending","errors"];
+  const rn={time:"時間",status:"狀態",minutes:"分鐘",official_rows:"官方筆數",finmind_requests:"FinMind請求",finmind_rows:"FinMind筆數",tdcc_queries:"集保查詢",excel_exported:"Excel",backfill_pending:"待回補",errors:"錯誤"};
+  document.getElementById("runs").innerHTML="<tr>"+rc.map(c=>`<th>${rn[c]}</th>`).join("")+"</tr>"+
+    d.runs.map(r=>"<tr>"+rc.map(c=>`<td class="${c==="status"?(r[c]==="ok"?"ok":"warn"):""}">${esc(r[c])}</td>`).join("")+"</tr>").join("");
+  const off=d.official_recent.slice().reverse();
+  document.getElementById("off").innerHTML="<tr><th>日期</th><th>來源</th><th>狀態</th><th>筆數</th><th>抓取時間</th></tr>"+
+    off.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.source)}</td><td class="${r.status==="ok"?"ok":r.status==="holiday"?"":"warn"}">${esc(r.status)}</td><td class="n">${fmt(r.rows)}</td><td>${esc(r.fetched_at)}</td></tr>`).join("");
+}).catch(e=>{document.getElementById("sub").textContent="讀取 stats.json 失敗："+e});
+</script>
+</body>
+</html>

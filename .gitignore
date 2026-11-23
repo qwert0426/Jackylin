@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.dbcache/
+site_out/
+.pytest_cache/
+client_secret*.json
+tools/client_secret*.json
+work/rag/

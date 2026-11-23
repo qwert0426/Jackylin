@@ -58,38 +58,65 @@ ratios = db.ratios(["2330"])                   # EPS、毛利率、ROE
 2. 登入後點右上角你的名字 →「個人資訊」。
 3. 看到一長串英文數字的「API Token」，按複製。先貼在記事本。
 
-### 第 2 步：建立 Google 授權
-（「授權」= 允許這支程式把檔案放進你的雲端硬碟）
-1. 打開 https://console.cloud.google.com ，用你的 Gmail 登入。
-2. 上方點「選取專案」→「新增專案」→ 名稱打 `twstock` →「建立」。
-3. 上方搜尋框打 `Google Drive API` → 點進去 →「啟用」。
-4. 再搜尋 `Google Sheets API` → 點進去 →「啟用」。
-5. 左邊選單「API 和服務」→「OAuth 同意畫面」→ 使用者類型選「外部」→ 應用程式名稱打 `twstock`，
-   兩個 email 欄位都填你的 Gmail → 一直按「儲存並繼續」到完成。
-6. 回到「OAuth 同意畫面」，找到「發布狀態」→ 按「發布應用程式」→「確認」。
-   **這步很重要**：沒有按的話，授權 7 天後就會失效，爬蟲會停。
-7. 左邊「憑證」→ 上方「建立憑證」→「OAuth 用戶端 ID」→ 應用程式類型選「電腦版應用程式」→「建立」。
-8. 跳出視窗按「下載 JSON」，把檔案改名成 `client_secret.json`。
+### 第 2 步：建立 Google 授權（手機或電腦瀏覽器都可以，不用裝任何程式）
+（「授權」= 允許這支程式把檔案放進你的雲端硬碟。手機建議點瀏覽器選單的「電腦版網站」，按鈕比較好找。）
 
-### 第 3 步：在自己電腦上拿授權碼（只要一次）
-1. 電腦要有 Python（沒有的話到 https://www.python.org 下載安裝，安裝時勾選「Add Python to PATH」）。
-2. 把這個 repo 的 `tools/get_google_refresh_token.py` 下載下來，和 `client_secret.json` 放在同一個資料夾。
-3. 在那個資料夾開「命令提示字元」（檔案總管上方網址列打 `cmd` 按 Enter）。
-4. 打：`pip install google-auth-oauthlib` 按 Enter，等它跑完。
-5. 打：`python get_google_refresh_token.py` 按 Enter。
-6. 瀏覽器會打開 → 選你的 Gmail → 如果出現「Google 尚未驗證這個應用程式」，點「進階」→「前往 twstock」→「繼續」。
-7. 回到黑色視窗，會看到三行：`GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`GOOGLE_REFRESH_TOKEN`。先複製到記事本。
+**2-1 開一個專案**
+1. 打開 https://console.cloud.google.com/projectcreate ，用你的 Gmail 登入。
+2. 「專案名稱」打 `twstock` → 按「建立」。
+3. 等右上角鈴鐺出現「已建立專案」。之後每一頁的最上方都要確認選的是 `twstock`。
+
+**2-2 打開兩個功能（API）**
+1. 打開 https://console.cloud.google.com/apis/library/drive.googleapis.com → 按藍色「啟用」。
+2. 打開 https://console.cloud.google.com/apis/library/sheets.googleapis.com → 按藍色「啟用」。
+3. 兩頁都看到「API 已啟用」或「管理」按鈕，就代表成功。
+
+**2-3 設定同意畫面**
+1. 打開 https://console.cloud.google.com/auth/overview →「開始使用」。
+2. 「應用程式名稱」打 `twstock`，「使用者支援電子郵件」選你的 Gmail →「下一步」。
+3. 「目標對象」選「外部」→「下一步」。
+4. 「聯絡資訊」打你的 Gmail →「下一步」→ 勾選同意 →「建立」。
+5. 打開 https://console.cloud.google.com/auth/audience → 找到「發布狀態：測試中」→ 按「發布應用程式」→「確認」。
+   看到「發布狀態：正式版」就對了。
+   **這步一定要做**：沒有按的話，授權 7 天後就會失效，爬蟲會停。
+
+**2-4 建立鑰匙（OAuth 用戶端）**
+1. 打開 https://console.cloud.google.com/auth/clients/create
+2. 「應用程式類型」選「**網頁應用程式**」，名稱打 `twstock`。
+3. 往下找「已授權的重新導向 URI」→ 按「新增 URI」→ 貼上這一行（一個字都不能錯）：
+   `https://developers.google.com/oauthplayground`
+4. 按「建立」。
+5. 跳出的視窗有「用戶端 ID」和「用戶端密鑰」，兩個都按旁邊的複製圖示，貼到記事本。
+   （關掉後也可以在 https://console.cloud.google.com/auth/clients 點 `twstock` 再看到）
+
+### 第 3 步：用網頁拿授權碼（Refresh token，只要一次）
+1. 打開 https://developers.google.com/oauthplayground
+2. 按右上角的**齒輪圖示** ⚙️ → 勾選「Use your own OAuth credentials」。
+3. 下面出現兩個框：「OAuth Client ID」貼用戶端 ID、「OAuth Client secret」貼用戶端密鑰。按空白處關掉齒輪視窗。
+4. 左邊「Step 1」最下面有一個輸入框（寫著 Input your own scopes），貼上：
+   `https://www.googleapis.com/auth/drive.file`
+5. 按藍色「Authorize APIs」→ 選你的 Gmail。
+6. 如果出現「Google 尚未驗證這個應用程式」：點「進階」→「前往 twstock（不安全）」→「繼續」。
+   （這是你自己建立的程式，所以 Google 還沒審查，可以放心。權限只有「本程式自己建立的檔案」，碰不到你其他檔案。）
+7. 回到 Playground，左邊會自動跳到「Step 2」→ 按藍色「Exchange authorization code for tokens」。
+8. 下面出現「Refresh token」（`1//` 開頭的一長串），複製貼到記事本。
+9. 現在記事本裡應該有 3 個值：用戶端 ID、用戶端密鑰、Refresh token。
+
+> 電腦上會用 Python 的人，也可以改用 `tools/get_google_refresh_token.py`（2-4 的類型要改選「電腦版應用程式」）。
 
 ### 第 4 步：把 4 把鑰匙放進 GitHub
-1. 打開 https://github.com/qwert0426/Jackylin → 上方「Settings」。
-2. 左邊「Secrets and variables」→「Actions」→ 綠色按鈕「New repository secret」。
+1. 打開 https://github.com/qwert0426/Jackylin/settings/secrets/actions
+2. 按綠色按鈕「New repository secret」。
 3. Name 打 `FINMIND_TOKEN`，Secret 貼第 1 步的 Token →「Add secret」。
-4. 同樣方法再新增三個：`GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`GOOGLE_REFRESH_TOKEN`（貼第 3 步的值）。
+4. 同樣方法再新增三個：
+   - `GOOGLE_CLIENT_ID` ← 貼「用戶端 ID」
+   - `GOOGLE_CLIENT_SECRET` ← 貼「用戶端密鑰」
+   - `GOOGLE_REFRESH_TOKEN` ← 貼「Refresh token」
 5. 完成後清單裡應該看到 4 個名字（看不到內容是正常的，代表有保護好）。
 
 ### 第 5 步：打開網頁儀表板
-1. 同一個 Settings 頁，左邊點「Pages」。
-2. 「Source」選「GitHub Actions」。
+1. 打開 https://github.com/qwert0426/Jackylin/settings/pages
+2. 「Build and deployment」下面的「Source」選「GitHub Actions」（選了就自動儲存）。
 
 ### 第 6 步：啟動
 1. 上方點「Actions」。如果看到「I understand my workflows…」的綠色按鈕，按下去。
